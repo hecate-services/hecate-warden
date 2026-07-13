@@ -22,12 +22,17 @@ AUTHLOG="${3:-/var/log/auth.log}"
 # Decoy ports for the tarpit. Empty = sensing only (no listeners). Set e.g.
 # "[2222,2323,23]" once the box firewall opens them.
 PORTS="${SPARTAN_TARPIT_PORTS:-[]}"
+# A human name for this warden, carried on every fact. Defaults to the last
+# dash-segment of the ssh host (relays-hetzner-helsinki -> helsinki); override
+# with WARDEN_LABEL for boxes whose name is an IP or unclear.
+_h="${HOST%%.*}"
+LABEL="${WARDEN_LABEL:-${_h##*-}}"
 # The beam boxes log in as rl; the public Hetzner boxes as root. Override with
 # SSH_USER=root (the ssh config already maps their IdentityFile by hostname).
 SSH_USER="${SSH_USER:-rl}"
 
 ssh -o BatchMode=yes "${SSH_USER}@${HOST}" \
-    "IMAGE='${IMAGE}' REALM='${REALM}' SEED='${SEED}' AUTHLOG='${AUTHLOG}' PORTS='${PORTS}' bash -s" <<'REMOTE'
+    "IMAGE='${IMAGE}' REALM='${REALM}' SEED='${SEED}' AUTHLOG='${AUTHLOG}' PORTS='${PORTS}' LABEL='${LABEL}' bash -s" <<'REMOTE'
 set -euo pipefail
 which docker >/dev/null || sudo=sudo
 ${sudo:-} docker pull "$IMAGE" >/dev/null
@@ -42,7 +47,8 @@ ${sudo:-} docker run -d --name hecate-warden --restart unless-stopped --network 
   -e HECATE_WARDEN_TARPIT_PORTS="$PORTS" \
   -e HECATE_WARDEN_MAX_CONNS=65536 \
   -e HECATE_WARDEN_AUTH_LOG=/host/log/auth.log \
+  -e HECATE_WARDEN_LABEL="$LABEL" \
   -v "${AUTHLOG}:/host/log/auth.log:ro" \
   "$IMAGE" >/dev/null
-echo "  hecate-warden up on $(hostname) -> ${SEED} (tarpit ports: ${PORTS})"
+echo "  hecate-warden up as \"${LABEL}\" -> ${SEED} (tarpit ports: ${PORTS})"
 REMOTE

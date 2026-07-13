@@ -7,7 +7,8 @@
         %% HECATE_WARDEN_TARPIT_PORTS="[2222,2323,23]".
         {tarpit_ports,     ${HECATE_WARDEN_TARPIT_PORTS}},
         {tarpit_max_conns, ${HECATE_WARDEN_MAX_CONNS}},
-        {auth_log,         "${HECATE_WARDEN_AUTH_LOG}"}
+        {auth_log,         "${HECATE_WARDEN_AUTH_LOG}"},
+        {label,            "${HECATE_WARDEN_LABEL}"}
     ]},
 
     {hecate_om, [

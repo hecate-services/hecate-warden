@@ -19,6 +19,7 @@
 threat(Sighting) when is_map(Sighting) ->
     publish(?THREAT_TOPIC, Sighting#{type => threat_sighted,
                                      warden => reporter(),
+                                     label => label(),
                                      at => at(Sighting)}).
 
 %% @doc We held an attacker in the tarpit for HeldMs and they gave up. Depth:
@@ -27,6 +28,7 @@ threat(Sighting) when is_map(Sighting) ->
 ensnared(Ip, HeldMs) when is_binary(Ip) ->
     publish(?ENSNARED_TOPIC, #{type => attacker_ensnared,
                                warden => reporter(),
+                               label => label(),
                                source_ip => Ip,
                                held_ms => HeldMs,
                                at => erlang:system_time(millisecond)}).
@@ -42,7 +44,19 @@ publish(Topic, Fact) ->
             ok
     end.
 
-%% This warden's own service DID — so a sighting says which box saw it.
+%% A human-readable name for this warden ("helsinki"), so a sighting says WHERE
+%% it was seen without anyone decoding a DID. It is also the stable identity the
+%% sentinel correlates on: the reporter DID is ephemeral (regenerated on
+%% restart), the label is not.
+label() ->
+    case application:get_env(hecate_warden, label) of
+        {ok, L} when is_list(L), L =/= "", L =/= "unknown" -> list_to_binary(L);
+        {ok, L} when is_binary(L), L =/= <<>>, L =/= <<"unknown">> -> L;
+        _ -> undefined
+    end.
+
+%% This warden's own service DID — so a sighting also carries cryptographic
+%% provenance of who reported it.
 reporter() ->
     try hecate_om_identity:service_did()
     catch _:_ -> undefined

@@ -64,6 +64,8 @@ ENV HECATE_WARDEN_MAX_CONNS=65536
 # The host auth log, mounted read-only. The sensor tails it for real attacks on
 # the box's real sshd; it never writes and never touches sshd.
 ENV HECATE_WARDEN_AUTH_LOG=/host/log/auth.log
+# A human name for this warden ("helsinki"). Travels on every fact it publishes.
+ENV HECATE_WARDEN_LABEL=unknown
 
 # Realm service-principal cert mounts here; station socket under /run/macula.
 VOLUME ["/etc/hecate/secrets", "/var/lib/hecate-warden"]
