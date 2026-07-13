@@ -1,0 +1,14 @@
+## Node identity + runtime flags for hecate_warden.
+-name ${HECATE_NODE_NAME}@${HECATE_NODE_HOST}
+-setcookie ${HECATE_COOKIE}
+
+## +A for the tarpit's many idle sockets; the whole point is cheap concurrency.
++K true
++A 16
+
+## The tarpit can hold tens of thousands of connections; lift the process and
+## port ceilings so a flood fills the tarpit instead of hitting a limit.
++P 1048576
++Q 1048576
+
+-env ERL_CRASH_DUMP /var/lib/hecate-warden/erl_crash.dump

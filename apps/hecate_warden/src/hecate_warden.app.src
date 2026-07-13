@@ -1,0 +1,25 @@
+{application, hecate_warden, [
+    {description, "Deceptive threshold guard: senses attacks and wastes attackers' time"},
+    {vsn, "0.1.0"},
+    {registered, [hecate_warden_sup]},
+    {mod, {hecate_warden_app, []}},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        %% Producer-only hecate_om service: mesh wiring, no reckon-db store.
+        hecate_om
+    ]},
+    {env, [
+        %% TCP ports the tarpit binds. Decoy ports by default — NOT the box's
+        %% real sshd port. Override from ${HECATE_WARDEN_TARPIT_PORTS} at boot.
+        {tarpit_ports, [2222, 2323, 23]},
+        %% Cap on concurrently-held connections, so a flood can't exhaust fds.
+        {tarpit_max_conns, 4096},
+        %% Auth log the sensor tails for REAL attacks on the box's real sshd.
+        {auth_log, "/host/log/auth.log"}
+    ]},
+    {modules, []},
+    {licenses, ["Apache-2.0"]},
+    {links, [{"Codeberg", "https://codeberg.org/hecate-services/hecate-warden"}]}
+]}.

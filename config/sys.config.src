@@ -1,0 +1,23 @@
+%% Substituted by relx at build; ${VAR} resolves from the environment at boot.
+[
+    {hecate_warden, [
+        %% Decoy ports the tarpit binds. NOT the box's real sshd port unless the
+        %% operator has moved sshd first (opt-in, per box). Textual substitution,
+        %% so the term is written as a list literal in the env value, e.g.
+        %% HECATE_WARDEN_TARPIT_PORTS="[2222,2323,23]".
+        {tarpit_ports,     ${HECATE_WARDEN_TARPIT_PORTS}},
+        {tarpit_max_conns, ${HECATE_WARDEN_MAX_CONNS}},
+        {auth_log,         "${HECATE_WARDEN_AUTH_LOG}"}
+    ]},
+
+    {hecate_om, [
+        {service_cert_path, "/etc/hecate/secrets/service-cert.pem"},
+        {station_socket,    "/run/macula/station.sock"},
+        {health_port,       ${HECATE_HEALTH_PORT}},
+        {capability_topic,  <<"_mesh.cap.">>},
+        %% Same realm as the Spartan society, so the generals hear the warden.
+        {realm,             <<"${HECATE_REALM}">>}
+    ]},
+
+    {kernel, [{logger_level, info}]}
+].
