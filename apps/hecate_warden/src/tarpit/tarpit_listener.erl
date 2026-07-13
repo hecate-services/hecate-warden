@@ -81,22 +81,22 @@ terminate(_Reason, St) ->
 %% gen_server, so it is never orphaned by a dying accepting process (the bug that
 %% made every connection close instantly). The gen_server only ever counts.
 accept_loop(Server, LSock) ->
-    case gen_tcp:accept(LSock) of
-        {ok, Conn} ->
-            {ok, Pid} = tarpit_connection:start(Conn),
-            case gen_tcp:controlling_process(Conn, Pid) of
-                ok ->
-                    tarpit_connection:go(Pid),
-                    gen_server:cast(Server, {ensnared, Pid});
-                {error, _} ->
-                    catch gen_tcp:close(Conn)
-            end,
-            accept_loop(Server, LSock);
-        {error, closed} ->
-            Server ! {listen_gone, LSock};
-        {error, _Reason} ->
-            accept_loop(Server, LSock)
-    end.
+    accepted(gen_tcp:accept(LSock), Server, LSock).
+
+accepted({ok, Conn}, Server, LSock) ->
+    {ok, Pid} = tarpit_connection:start(Conn),
+    handoff(gen_tcp:controlling_process(Conn, Pid), Conn, Pid, Server),
+    accept_loop(Server, LSock);
+accepted({error, closed}, Server, LSock) ->
+    Server ! {listen_gone, LSock};
+accepted({error, _Reason}, Server, LSock) ->
+    accept_loop(Server, LSock).
+
+handoff(ok, _Conn, Pid, Server) ->
+    tarpit_connection:go(Pid),
+    gen_server:cast(Server, {ensnared, Pid});
+handoff({error, _}, Conn, _Pid, _Server) ->
+    catch gen_tcp:close(Conn).
 
 listen(Port) ->
     Opts = [binary, {packet, raw}, {active, false}, {reuseaddr, true},
