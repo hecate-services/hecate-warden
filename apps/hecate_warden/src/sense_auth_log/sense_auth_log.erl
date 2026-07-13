@@ -19,8 +19,12 @@
 -export([parse/1]).  %% exported for tests
 
 %% A single fat-fingered login is not an attack. This many failures from one IP
-%% inside the window is.
--define(THRESHOLD, 15).
+%% inside the window is. Tuned to the real distribution on the public boxes: the
+%% attackers are a broad, distributed botnet — many source IPs each at a low
+%% rate (4-8 tries per 5 min) rather than a few hammering hard, so a high
+%% threshold almost never fires. Five failed auths in five minutes from one IP
+%% is unambiguously malicious here (it is credential spray, not a typo).
+-define(THRESHOLD, 5).
 -define(WINDOW_MS, 300000).      %% 5 minutes
 -define(POLL_MS,   2000).
 %% Don't re-report the same IP more often than this (it is still attacking).
@@ -152,9 +156,12 @@ maybe_report(_Ip, _Count, _Now, St) ->
 report_if(false, _Ip, _Count, _Now, St) ->
     St;
 report_if(true, Ip, Count, Now, St) ->
+    Users = maps:get(Ip, St#st.users, []),
+    logger:info("[warden] threat: ~s (~b attempts/~bs) users=~p",
+                [Ip, Count, ?WINDOW_MS div 1000, Users]),
     _ = hecate_warden_facts:threat(#{source_ip => Ip,
                                      service => <<"ssh">>,
                                      attempts => Count,
                                      window_s => ?WINDOW_MS div 1000,
-                                     usernames => maps:get(Ip, St#st.users, [])}),
+                                     usernames => Users}),
     St#st{reported = maps:put(Ip, Now, St#st.reported)}.
