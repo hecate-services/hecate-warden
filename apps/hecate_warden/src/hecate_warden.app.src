@@ -1,6 +1,6 @@
 {application, hecate_warden, [
     {description, "Deceptive threshold guard: senses attacks and wastes attackers' time"},
-    {vsn, "0.1.1"},
+    {vsn, "0.2.0"},
     {registered, [hecate_warden_sup]},
     {mod, {hecate_warden_app, []}},
     {applications, [

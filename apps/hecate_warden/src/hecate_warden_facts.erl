@@ -8,10 +8,11 @@
 %%% the tarpit from doing its job.
 -module(hecate_warden_facts).
 
--export([threat/1, ensnared/2]).
+-export([threat/1, ensnared/2, presence/0]).
 
 -define(THREAT_TOPIC,   <<"warden/threats">>).
 -define(ENSNARED_TOPIC, <<"warden/ensnared">>).
+-define(PRESENCE_TOPIC, <<"warden/presence">>).
 
 %% @doc A real attacker was seen on the box's real service (from the auth log).
 %% Breadth: this is every attacker, and it is what correlates across countries.
@@ -35,7 +36,46 @@ ensnared(Ip, HeldMs) when is_binary(Ip) ->
                                held_ms => HeldMs,
                                at => erlang:system_time(millisecond)}).
 
+%% @doc Heartbeat: the warden announces its own presence so the map can build
+%% its roster live (no hard-coded box list). Carries the box's declared
+%% coordinates when set — SELF-ASSERTED, not verified: fine for our own fleet
+%% and for deliberately placing a marker, but an untrusted warden could claim
+%% any location. Coordinates are micro-degree integers (the mesh drops raw
+%% floats). A warden with no declared coordinates still announces — it is listed
+%% as online without a marker.
+-spec presence() -> ok.
+presence() ->
+    publish(?PRESENCE_TOPIC, with_coords(#{type => warden_present,
+                                           warden => reporter(),
+                                           tenant_id => tenant_id(),
+                                           label => label(),
+                                           tarpit => tarpit_on(),
+                                           at => erlang:system_time(millisecond)})).
+
 %% --- Internal ---
+
+with_coords(Fact) ->
+    maybe_coord(maybe_coord(Fact, lat_e6, "HECATE_WARDEN_LAT_E6"),
+                lng_e6, "HECATE_WARDEN_LNG_E6").
+
+maybe_coord(Fact, Key, EnvVar) ->
+    put_coord(Fact, Key, os:getenv(EnvVar)).
+
+put_coord(Fact, _Key, false) -> Fact;
+put_coord(Fact, _Key, "")    -> Fact;
+put_coord(Fact, Key, S) ->
+    case string:to_integer(S) of
+        {I, _} when is_integer(I) -> Fact#{Key => I};
+        _                          -> Fact
+    end.
+
+%% Whether this warden is running the tarpit (decoy ports bound) or is a pure
+%% sensing sidecar. Carried on presence so the map can distinguish a decoy node.
+tarpit_on() ->
+    case application:get_env(hecate_warden, tarpit_ports) of
+        {ok, [_ | _]} -> true;
+        _             -> false
+    end.
 
 publish(Topic, Fact) ->
     case {hecate_om:macula_client(), hecate_om_identity:realm()} of

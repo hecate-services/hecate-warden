@@ -22,7 +22,12 @@ init([]) ->
         %% slow fake SSH banner. Depth: the ones who took the bait. Publishes
         %% attacker_ensnared facts. BEAM holds tens of thousands of these idle
         %% connections for the cost of a socket and a timer each.
-        worker(tarpit_listener)
+        worker(tarpit_listener),
+
+        %% Announces this warden's presence (label + declared coordinates) on a
+        %% heartbeat, so the federation map builds its roster live instead of
+        %% from a hard-coded list. A box self-registers the moment it boots.
+        worker(announce_presence)
     ],
     {ok, {SupFlags, Children}}.
 

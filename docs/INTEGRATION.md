@@ -122,6 +122,8 @@ long you held them.
 | `MACULA_STATION_SEEDS` | — | Station URL(s) to reach the mesh. **Required.** |
 | `HECATE_WARDEN_TARPIT_PORTS` | `[]` | Decoy ports as an Erlang list literal, e.g. `[2222,2323]`. `[]` = sensing-only. |
 | `HECATE_WARDEN_MAX_CONNS` | `65536` | Max concurrent tarpit connections held open. |
+| `HECATE_WARDEN_LAT_E6` | *(unset → no marker)* | This box's latitude in **micro-degrees** (integer; the mesh drops raw floats). E.g. Helsinki `60170000`. Announced on the `warden/presence` heartbeat so the map self-populates. **Self-asserted** — a warden can claim any location; unset = listed online without a map marker. |
+| `HECATE_WARDEN_LNG_E6` | *(unset → no marker)* | This box's longitude in micro-degrees. E.g. Helsinki `24940000`. |
 | `HECATE_WARDEN_AUTH_LOG` | `/host/log/auth.log` | Path to the auth log **inside the container** (mount your host log here read-only). |
 | `HECATE_HEALTH_PORT` | `8460` | Local health endpoint port. |
 | `HECATE_NODE_NAME` | `hecate_warden` | Erlang node name (only matters if you run more than one on a host). |
