@@ -1,0 +1,37 @@
+# hecate-warden — drop-in sidecar for a public-facing box.
+#
+#   cp .env.example .env      # then fill it in
+#   docker compose up -d
+#
+# Sensing-only by default: it opens NO ports and only reads the auth log you
+# mount read-only. See docs/INTEGRATION.md for the tarpit step and the full
+# environment reference.
+services:
+  hecate-warden:
+    image: ghcr.io/hecate-services/hecate-warden:latest
+    restart: unless-stopped
+    # Host networking: the public mesh stations are IPv6-only and reached via the
+    # host's IPv6. The warden opens no ports of its own unless you enable the tarpit.
+    network_mode: host
+    environment:
+      # --- who + where (carried on every fact) ---
+      HECATE_WARDEN_TENANT_ID: ${HECATE_WARDEN_TENANT_ID}
+      HECATE_WARDEN_LABEL: ${HECATE_WARDEN_LABEL}
+
+      # --- the commons you join (given to you; not secrets) ---
+      HECATE_REALM: ${HECATE_REALM}
+      MACULA_STATION_SEEDS: ${MACULA_STATION_SEEDS}
+
+      # --- sensing / tarpit ---
+      HECATE_WARDEN_TARPIT_PORTS: ${HECATE_WARDEN_TARPIT_PORTS:-[]}
+      HECATE_WARDEN_MAX_CONNS: ${HECATE_WARDEN_MAX_CONNS:-65536}
+      HECATE_WARDEN_AUTH_LOG: /host/log/auth.log
+
+      # --- local mesh client (loopback; you rarely change these) ---
+      HECATE_NODE_NAME: hecate_warden
+      HECATE_NODE_HOST: 127.0.0.1
+      HECATE_COOKIE: hecate_warden
+      HECATE_HEALTH_PORT: 8460
+    volumes:
+      # Your host's auth log, READ-ONLY. RHEL/Amazon Linux: /var/log/secure
+      - ${HECATE_WARDEN_AUTH_LOG_HOST:-/var/log/auth.log}:/host/log/auth.log:ro

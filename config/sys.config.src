@@ -8,6 +8,13 @@
         {tarpit_ports,     ${HECATE_WARDEN_TARPIT_PORTS}},
         {tarpit_max_conns, ${HECATE_WARDEN_MAX_CONNS}},
         {auth_log,         "${HECATE_WARDEN_AUTH_LOG}"},
+        %% WHO operates this warden — a third party dropping the sidecar into
+        %% their own stack sets this to their own id. Carried on every fact so
+        %% the commons can attribute a sighting to its contributor and a tenant
+        %% can see their own wardens. Correlation stays GLOBAL (that is the
+        %% point): an attacker hitting two tenants is a cross-org campaign.
+        {tenant_id,        "${HECATE_WARDEN_TENANT_ID}"},
+        %% WHERE this warden runs — a box/service name ("helsinki", "web-01").
         {label,            "${HECATE_WARDEN_LABEL}"}
     ]},
 

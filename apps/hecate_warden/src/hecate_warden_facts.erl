@@ -19,6 +19,7 @@
 threat(Sighting) when is_map(Sighting) ->
     publish(?THREAT_TOPIC, Sighting#{type => threat_sighted,
                                      warden => reporter(),
+                                     tenant_id => tenant_id(),
                                      label => label(),
                                      at => at(Sighting)}).
 
@@ -28,6 +29,7 @@ threat(Sighting) when is_map(Sighting) ->
 ensnared(Ip, HeldMs) when is_binary(Ip) ->
     publish(?ENSNARED_TOPIC, #{type => attacker_ensnared,
                                warden => reporter(),
+                               tenant_id => tenant_id(),
                                label => label(),
                                source_ip => Ip,
                                held_ms => HeldMs,
@@ -52,6 +54,18 @@ label() ->
     case application:get_env(hecate_warden, label) of
         {ok, L} when is_list(L), L =/= "", L =/= "unknown" -> list_to_binary(L);
         {ok, L} when is_binary(L), L =/= <<>>, L =/= <<"unknown">> -> L;
+        _ -> undefined
+    end.
+
+%% WHO operates this warden — the third-party (or our own) id that a warden is
+%% run under. `undefined' when unset: an unattributed contributor to the commons.
+%% Distinct from `label' (which box) and `reporter' (ephemeral DID): tenant_id is
+%% stable and names the ORG, so the commons can attribute and a tenant can filter
+%% to their own fleet without the correlation ever being scoped to one tenant.
+tenant_id() ->
+    case application:get_env(hecate_warden, tenant_id) of
+        {ok, T} when is_list(T), T =/= "", T =/= "unknown" -> list_to_binary(T);
+        {ok, T} when is_binary(T), T =/= <<>>, T =/= <<"unknown">> -> T;
         _ -> undefined
     end.
 
