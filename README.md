@@ -1,5 +1,12 @@
 # hecate-warden
 
+> **⚠️ DEPRECATED (2026-07-18).** Retired in the pivot from the cybersecurity
+> use case to a broad public cognitive substrate. The deployed wardens were
+> sensing-only (no tarpit) feeding the now-retired hecate-sentinel, so removing
+> them costs no active defense; public boxes rely on standard hardening. Kept for
+> reference; the tarpit code remains here if a genuine box-defense project revives
+> it later. Not maintained.
+
 A deceptive threshold guard you bolt onto a public-facing box. It watches the
 intrusion attempts your server is *already* taking, turns the persistent ones
 into a shared, provenanced indicator on a federated mesh, and — if you let it —
