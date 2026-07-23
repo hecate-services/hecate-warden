@@ -23,23 +23,32 @@ DEPLOY="${HERE}/deploy-warden.sh"
 : "${HECATE_REALM:?set HECATE_REALM to the 64-hex realm tag}"
 FRANKFURT="https://station-de-frankfurt.macula.io:4433"
 
-# box = "ssh-host|station-seed|label-override(optional)". Blank label => derived
-# from the host by deploy-warden.sh. Public boxes all log in as root.
+# box = "ssh-host|station-seed|label|lat_e6|lng_e6". Public boxes log in as root.
+# lat/lng are the box's real-city micro-degrees (degrees x 1e6) — WITHOUT them
+# the warden announces presence but the /vigil map draws NO marker for it. The
+# 3 Nuremberg boxes carry small offsets so they render as a cluster, not a stack.
+#
+# ALL wardens seed station-de-frankfurt — the sentinel's own station — so every
+# warden->sentinel hop is 1-hop (same station), which delivers reliably. The
+# earlier design seeded the station-box wardens at their LOCAL station
+# (helsinki->fr-paris, falkenstein->be-brussels) and relied on cross-relay
+# interest propagation to reach the sentinel; that multi-hop path did not
+# converge, so the fleet is collapsed onto the de-frankfurt hub (2026-07-23).
 STATIONS=(
-  "relays-hetzner-helsinki.macula.io|https://station-fr-paris.macula.io:4433|"
-  "relays-hetzner-nuremberg.macula.io|${FRANKFURT}|"
-  "stations-hetzner-falkenstein.macula.io|https://station-be-brussels.macula.io:4433|"
-  "macula.io|${FRANKFURT}|"
-  "relays-linode-paris.macula.io|${FRANKFURT}|"
+  "relays-hetzner-helsinki.macula.io|${FRANKFURT}|helsinki|60169900|24938400"
+  "relays-hetzner-nuremberg.macula.io|${FRANKFURT}|nuremberg|49452100|11076700"
+  "stations-hetzner-falkenstein.macula.io|${FRANKFURT}|falkenstein|50477900|12371300"
+  "macula.io|${FRANKFURT}|frankfurt|50110900|8682100"
+  "relays-linode-paris.macula.io|${FRANKFURT}|paris|48856600|2352200"
 )
 RELAYS=(
-  "dist-hetzner-nuremberg.macula.io|${FRANKFURT}|"
-  "159.69.210.171|${FRANKFURT}|reckon"
+  "dist-hetzner-nuremberg.macula.io|${FRANKFURT}|nuremberg-dist|49470000|11095000"
+  "159.69.210.171|${FRANKFURT}|reckon-db|49435000|11060000"
 )
 # NEW coverage (user request 2026-07-23): the two Linode stub Nanodes.
 STUBS=(
-  "172.232.219.239|${FRANKFURT}|milan"
-  "172.234.124.60|${FRANKFURT}|stockholm"
+  "172.232.219.239|${FRANKFURT}|milan|45464200|9190000"
+  "172.234.124.60|${FRANKFURT}|stockholm|59329300|18068600"
 )
 
 group="${1:-all}"
@@ -53,16 +62,14 @@ esac
 
 echo "Re-arming ${#FLEET[@]} warden(s) in group '${group}' (realm ${HECATE_REALM:0:8}…)"
 for box in "${FLEET[@]}"; do
-  IFS='|' read -r host seed label <<<"$box"
-  echo "── ${host} → ${seed}${label:+  (label: ${label})}"
+  IFS='|' read -r host seed label lat lng <<<"$box"
+  echo "── ${host} → ${seed}  (${label} @ ${lat}/${lng})"
   if [[ -n "${DRY_RUN:-}" ]]; then
-    echo "   DRY_RUN: SSH_USER=root ${label:+WARDEN_LABEL=${label} }HECATE_REALM=… ${DEPLOY} ${host} ${seed}"
+    echo "   DRY_RUN: SSH_USER=root WARDEN_LABEL=${label} HECATE_WARDEN_LAT_E6=${lat} HECATE_WARDEN_LNG_E6=${lng} HECATE_REALM=… ${DEPLOY} ${host} ${seed}"
     continue
   fi
-  if [[ -n "$label" ]]; then
-    SSH_USER=root WARDEN_LABEL="$label" HECATE_REALM="$HECATE_REALM" "$DEPLOY" "$host" "$seed"
-  else
-    SSH_USER=root HECATE_REALM="$HECATE_REALM" "$DEPLOY" "$host" "$seed"
-  fi
+  SSH_USER=root WARDEN_LABEL="$label" \
+    HECATE_WARDEN_LAT_E6="$lat" HECATE_WARDEN_LNG_E6="$lng" \
+    HECATE_REALM="$HECATE_REALM" "$DEPLOY" "$host" "$seed"
 done
-echo "Done. Verify facts flowing: the realm's /threats page fills as wardens report."
+echo "Done. /threats fills as wardens report; /vigil draws a marker per box now that coords are set."
