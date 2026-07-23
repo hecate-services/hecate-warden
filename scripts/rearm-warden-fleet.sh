@@ -43,6 +43,9 @@ STATIONS=(
 )
 RELAYS=(
   "159.69.210.171|${FRANKFURT}|reckon-db|49435000|11060000"
+  # beam-campus.net commons site — public, attacked; sensing-only warden.
+  # Second Falkenstein box: coords offset from stations-hetzner-falkenstein.
+  "178.105.157.209|${FRANKFURT}|beamcampus|50485000|12385000"
 )
 # NEW coverage (user request 2026-07-23): the two Linode stub Nanodes.
 STUBS=(
