@@ -5,10 +5,10 @@
 # ONLY: no listening ports, no attack surface, no station changes. Reversible
 # per box with `docker rm -f hecate-warden`.
 #
-# The 7 canonical boxes are the fleet that ran wardens before the 2026-07-18
-# retirement (see infrastructure/WARDEN.md). The 2 Linode stub boxes are NEW
-# coverage: they are Nanode 1GB, and a sensing-only warden fits comfortably
-# (a full macula-station does NOT — do not add one without a plan bump).
+# 6 canonical boxes (the pre-2026-07-18 fleet minus dist-hetzner-nuremberg,
+# phased out 2026-07). The 2 Linode stub boxes are NEW coverage: Nanode 1GB, a
+# sensing-only warden fits comfortably (a full macula-station does NOT — do not
+# add one without a plan bump). See infrastructure/WARDEN.md.
 #
 # Usage:
 #   HECATE_REALM=<64-hex> ./scripts/rearm-warden-fleet.sh          # all boxes
@@ -42,7 +42,6 @@ STATIONS=(
   "relays-linode-paris.macula.io|${FRANKFURT}|paris|48856600|2352200"
 )
 RELAYS=(
-  "dist-hetzner-nuremberg.macula.io|${FRANKFURT}|nuremberg-dist|49470000|11095000"
   "159.69.210.171|${FRANKFURT}|reckon-db|49435000|11060000"
 )
 # NEW coverage (user request 2026-07-23): the two Linode stub Nanodes.
