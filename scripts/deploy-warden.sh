@@ -11,6 +11,14 @@
 # realm, so its facts reach the sentinel over the relay mesh. Storeless: the box
 # holds no evidence — that lives in hecate-sentinel, off the attacked machine.
 #
+# THIS SCRIPT ONLY CREATES THE CONTAINER. New images roll via watchtower, which
+# already runs on every public box with WATCHTOWER_LABEL_ENABLE=true — hence the
+# enable label below. Without it the warden is invisible to watchtower and
+# pinned to whatever image it was created with: that is how the fleet sat on
+# macula 5.2.2 for weeks while a 7.0.0 image sat unused on the same disks. Run
+# this only to create a warden or to change something docker cannot hot-swap
+# (a mount, an env var); never as the way to ship a new build.
+#
 #   HECATE_REALM=<64-hex> ./scripts/deploy-warden.sh <ssh-host> <station-seed> [auth-log]
 set -euo pipefail
 
@@ -19,6 +27,15 @@ REALM="${HECATE_REALM:?set HECATE_REALM to the 64-hex realm tag}"
 HOST="${1:?usage: deploy-warden.sh <ssh-host> <station-seed> [auth-log]}"
 SEED="${2:?usage: deploy-warden.sh <ssh-host> <station-seed> [auth-log]}"
 AUTHLOG="${3:-/var/log/auth.log}"
+# Mount the log's DIRECTORY, never the file. A single-file bind mount binds the
+# INODE, so when logrotate renames auth.log away and creates a fresh one the
+# container keeps reading the dead file forever — silently, while still
+# reporting healthy. That blinded the entire fleet from 2026-07-26 until it was
+# found two days later. With the directory mounted, the path inside the
+# container resolves to whatever file currently answers to it, and
+# sense_auth_log's inode check picks the replacement up on the next poll.
+AUTHDIR="$(dirname "${AUTHLOG}")"
+AUTHBASE="$(basename "${AUTHLOG}")"
 # Decoy ports for the tarpit. Empty = sensing only (no listeners). Set e.g.
 # "[2222,2323,23]" once the box firewall opens them.
 PORTS="${SPARTAN_TARPIT_PORTS:-[]}"
@@ -41,12 +58,13 @@ LNG_E6="${HECATE_WARDEN_LNG_E6:-}"
 SSH_USER="${SSH_USER:-rl}"
 
 ssh -o BatchMode=yes "${SSH_USER}@${HOST}" \
-    "IMAGE='${IMAGE}' REALM='${REALM}' SEED='${SEED}' AUTHLOG='${AUTHLOG}' PORTS='${PORTS}' LABEL='${LABEL}' TENANT_ID='${TENANT_ID}' LAT_E6='${LAT_E6}' LNG_E6='${LNG_E6}' bash -s" <<'REMOTE'
+    "IMAGE='${IMAGE}' REALM='${REALM}' SEED='${SEED}' AUTHDIR='${AUTHDIR}' AUTHBASE='${AUTHBASE}' PORTS='${PORTS}' LABEL='${LABEL}' TENANT_ID='${TENANT_ID}' LAT_E6='${LAT_E6}' LNG_E6='${LNG_E6}' bash -s" <<'REMOTE'
 set -euo pipefail
 which docker >/dev/null || sudo=sudo
 ${sudo:-} docker pull "$IMAGE" >/dev/null
 ${sudo:-} docker rm -f hecate-warden >/dev/null 2>&1 || true
 ${sudo:-} docker run -d --name hecate-warden --restart unless-stopped --network host \
+  --label com.centurylinklabs.watchtower.enable=true \
   -e HECATE_REALM="$REALM" \
   -e MACULA_STATION_SEEDS="$SEED" \
   -e HECATE_NODE_NAME=hecate_warden \
@@ -55,12 +73,12 @@ ${sudo:-} docker run -d --name hecate-warden --restart unless-stopped --network 
   -e HECATE_HEALTH_PORT=8460 \
   -e HECATE_WARDEN_TARPIT_PORTS="$PORTS" \
   -e HECATE_WARDEN_MAX_CONNS=65536 \
-  -e HECATE_WARDEN_AUTH_LOG=/host/log/auth.log \
+  -e HECATE_WARDEN_AUTH_LOG="/host/log/${AUTHBASE}" \
   -e HECATE_WARDEN_TENANT_ID="$TENANT_ID" \
   -e HECATE_WARDEN_LABEL="$LABEL" \
   -e HECATE_WARDEN_LAT_E6="$LAT_E6" \
   -e HECATE_WARDEN_LNG_E6="$LNG_E6" \
-  -v "${AUTHLOG}:/host/log/auth.log:ro" \
+  -v "${AUTHDIR}:/host/log:ro" \
   "$IMAGE" >/dev/null
 echo "  hecate-warden up as \"${TENANT_ID}/${LABEL}\" -> ${SEED} (tarpit ports: ${PORTS}; coords: ${LAT_E6:-unset}/${LNG_E6:-unset})"
 REMOTE

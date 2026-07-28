@@ -1,8 +1,8 @@
 # Build the OCI image for hecate-warden and push to ghcr.io.
 #
-# Codeberg is canonical; this runs on the GitHub push-mirror (Codeberg has
-# Forgejo Actions disabled per the migration pattern). Triggered on push to
-# main and on tag pushes.
+# GitHub is canonical (since 2026-07-26). Triggered on push to main and on tag
+# pushes. A push to main publishes :latest, which is what watchtower on the
+# public boxes polls for — so merging here IS the deploy.
 
 name: build-and-push
 

@@ -30,15 +30,7 @@
 %% Don't re-report the same IP more often than this (it is still attacking).
 -define(REPORT_COOLDOWN_MS, 600000).
 
--record(st, {path :: string(),
-             fd :: file:io_device() | undefined,
-             pos = 0 :: non_neg_integer(),
-             %% ip => [timestamp_ms] within the window
-             hits = #{} :: #{binary() => [integer()]},
-             %% ip => last_reported_ms
-             reported = #{} :: #{binary() => integer()},
-             %% ip => set of usernames tried (evidence; revealing)
-             users = #{} :: #{binary() => [binary()]}}).
+-include("sense_auth_log.hrl").
 
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
@@ -52,7 +44,10 @@ handle_call(_Req, _From, St) -> {reply, {error, unknown_call}, St}.
 handle_cast(_Msg, St)        -> {noreply, St}.
 
 handle_info(poll, St) ->
-    St2 = drain(open(St)),
+    %% Drain what we hold BEFORE looking for a rotation: the tail of the
+    %% outgoing file is still ours to read, and it stops growing the instant
+    %% the new one appears. Then follow the path, then drain the new file.
+    St2 = drain(follow(drain(St))),
     erlang:send_after(?POLL_MS, self(), poll),
     {noreply, St2};
 handle_info(_Info, St) ->
@@ -64,24 +59,62 @@ terminate(_Reason, #st{fd = Fd}) ->
 
 %% --- Internal ---
 
-%% Open the log lazily, and reopen on rotation (size shrank below our position).
-open(#st{fd = undefined, path = Path} = St) ->
-    case file:open(Path, [read, binary, raw]) of
-        {ok, Fd} ->
-            %% Start at end: we care about live attacks, not history.
-            {ok, Eof} = file:position(Fd, eof),
-            St#st{fd = Fd, pos = Eof};
-        {error, _} ->
-            St
-    end;
-open(#st{fd = Fd, path = Path, pos = Pos} = St) ->
-    case file:read_file_info(Path) of
-        {ok, #file_info{size = Size}} when Size < Pos ->
-            _ = close(Fd),
-            open(St#st{fd = undefined, pos = 0});
-        _ ->
-            St
-    end.
+%% Open the log lazily, and FOLLOW IT ACROSS ROTATION.
+%%
+%% What rotates is the path, not the handle. logrotate renames auth.log to
+%% auth.log.1 and creates a fresh one, so an open fd goes on pointing at a file
+%% that will never grow again — the sensor sits at EOF forever and reports
+%% nothing, while the box is still being attacked and the container still looks
+%% healthy. That is exactly how the whole fleet went blind on 2026-07-26.
+%%
+%% We compare the INODE at the path against the one we opened. A size check
+%% alone cannot see a rename: it only fires while the new file is still shorter
+%% than our position, and on a box taking tens of thousands of attempts a day
+%% the replacement passes that mark in seconds. The size check is kept for
+%% truncation in place (logrotate `copytruncate'), where the inode does not
+%% change.
+%%
+%% The mount matters as much as this code: bind-mounting the FILE into the
+%% container pins the inode, so the path can never resolve to the new file and
+%% no guard here can help. The directory is what must be mounted. See
+%% scripts/deploy-warden.sh.
+follow(#st{path = Path} = St) ->
+    followed(St, file:read_file_info(Path)).
+
+%% No readable log at the path (yet). Keep what we hold and retry next poll.
+followed(St, {error, _}) ->
+    St;
+%% First open. Start at the end: we care about live attacks, not history.
+%% This clause must precede the inode clause, which an unset inode also matches.
+followed(#st{fd = undefined} = St, {ok, Info}) ->
+    open_at(St, Info, eof);
+%% Renamed and recreated: a different file answers to the path now.
+followed(#st{inode = Inode} = St, {ok, #file_info{inode = Fresh} = Info})
+  when Fresh =/= Inode ->
+    open_at(release(St), Info, 0);
+%% Truncated in place: the file we hold is shorter than where we are in it.
+followed(#st{pos = Pos} = St, {ok, #file_info{size = Size} = Info})
+  when Size < Pos ->
+    open_at(release(St), Info, 0);
+followed(St, {ok, _Info}) ->
+    St.
+
+release(#st{fd = Fd} = St) ->
+    _ = close(Fd),
+    St#st{fd = undefined, inode = undefined}.
+
+%% Take up the file at the path. A replacement is read from byte 0: the lines
+%% written between the rotation and this poll are live sightings, not history.
+open_at(#st{path = Path} = St, #file_info{inode = Inode}, Start) ->
+    started(St#st{inode = Inode}, file:open(Path, [read, binary, raw]), Start).
+
+started(St, {ok, Fd}, eof) ->
+    {ok, Eof} = file:position(Fd, eof),
+    St#st{fd = Fd, pos = Eof};
+started(St, {ok, Fd}, Pos) ->
+    St#st{fd = Fd, pos = Pos};
+started(St, {error, _}, _Start) ->
+    St#st{fd = undefined, inode = undefined}.
 
 close(undefined) -> ok;
 close(Fd)        -> file:close(Fd).
