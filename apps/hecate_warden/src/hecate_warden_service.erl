@@ -34,9 +34,42 @@ start(_Opts) ->
 stop(_State) ->
     ok.
 
-%% Green once the tarpit is listening and the sensor is tailing.
+%% Health is the SENSOR's health, asserted rather than assumed.
+%%
+%% This used to return a bare `ok' under a comment claiming it was green "once
+%% the sensor is tailing". It checked nothing. On 2026-07-26 logrotate replaced
+%% auth.log under every warden in the fleet, all nine went blind, and all nine
+%% went on reporting healthy for two days while the boxes were being attacked.
+%% A container that says it is fine while sensing nothing is worse than one that
+%% crashes, because nothing ever looks at it again.
 health() ->
-    ok.
+    sensing(catch sense_auth_log:status()).
+
+%% Not attached to anything: the path is missing or unreadable. Usually the
+%% mount. Nothing this warden reports can be trusted, so do not say ok.
+sensing(#{attached := false, path := Path}) ->
+    {down, {auth_log_unreadable, Path}};
+%% Attached, has read before, and has now been quiet far longer than any real
+%% gap on a public box (these take tens of thousands of attempts a day, so the
+%% log advances many times a minute). This is the blind-but-alive state.
+sensing(#{silent_ms := Silent}) when is_integer(Silent) ->
+    quiet(Silent >= silence_limit_ms(), Silent);
+%% Attached but has never read a byte since boot. Deliberately FAILS OPEN: a
+%% warden freshly started on a genuinely quiet box must not cry broken.
+sensing(#{}) ->
+    ok;
+%% The sensor did not answer at all (dead, or wedged past the call timeout).
+sensing(_Unavailable) ->
+    {down, sensor_unavailable}.
+
+quiet(true, Silent)   -> {degraded, {auth_log_silent_ms, Silent}};
+quiet(false, _Silent) -> ok.
+
+%% One hour. Long enough that no real lull on an attacked box trips it, short
+%% enough that a rotation-blinded sensor is caught the same morning instead of
+%% two days later.
+silence_limit_ms() ->
+    application:get_env(hecate_warden, auth_log_silence_ms, 3600000).
 
 %% What the warden announces it can do. It reports threats and it ensnares —
 %% nothing that reaches toward an attacker, nothing that could lock the operator

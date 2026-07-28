@@ -8,6 +8,12 @@
              %% path, and the only thing that reliably reveals it.
              inode :: non_neg_integer() | undefined,
              pos = 0 :: non_neg_integer(),
+             %% When we last consumed bytes from the log. `undefined' means we
+             %% have not read a single byte since boot, which is different from
+             %% having gone quiet and is treated differently by health/0: a
+             %% warden that has never seen traffic may simply be on a quiet box,
+             %% but one that WAS reading and then stopped is blind.
+             last_read_ms :: integer() | undefined,
              %% ip => [timestamp_ms] within the window
              hits = #{} :: #{binary() => [integer()]},
              %% ip => last_reported_ms

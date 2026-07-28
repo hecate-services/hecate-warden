@@ -80,11 +80,21 @@ tarpit_on() ->
 publish(Topic, Fact) ->
     case {hecate_om:macula_client(), hecate_om_identity:realm()} of
         {{ok, Pool}, {ok, Realm}} ->
-            catch macula:publish(Pool, Realm, Topic, Fact),
-            ok;
+            published(Topic, catch macula:publish(Pool, Realm, Topic, Fact));
         _DarkOrNoRealm ->
             ok
     end.
+
+%% A refused frame used to vanish here. Since macula 6.0.0 an unsendable frame
+%% fails its SENDER with a reason instead of killing the shared peering
+%% connection, so the reason exists and there is no longer any excuse for
+%% discarding it: a warden whose facts are being rejected looks exactly like a
+%% warden with nothing to report. Say which.
+published(_Topic, ok) ->
+    ok;
+published(Topic, Refused) ->
+    logger:warning("[warden] publish ~s REFUSED: ~p", [Topic, Refused]),
+    ok.
 
 %% A human-readable name for this warden ("helsinki"), so a sighting says WHERE
 %% it was seen without anyone decoding a DID. It is also the stable identity the

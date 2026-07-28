@@ -14,7 +14,7 @@
 -include_lib("kernel/include/file.hrl").
 -behaviour(gen_server).
 
--export([start_link/0]).
+-export([start_link/0, status/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 -export([parse/1]).  %% exported for tests
 
@@ -35,11 +35,25 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+%% @doc What this sensor is actually attached to, and whether it is still
+%% reading. The warden's health depends on it: an auth-log tail that is alive
+%% but blind reports nothing and looks identical to a quiet night, which is how
+%% the fleet stayed silent for two days without a single alarm.
+-spec status() -> #{path := string(),
+                    attached := boolean(),
+                    inode := non_neg_integer() | undefined,
+                    pos := non_neg_integer(),
+                    silent_ms := non_neg_integer() | undefined}.
+status() ->
+    gen_server:call(?MODULE, status, 1000).
+
 init([]) ->
     Path = application:get_env(hecate_warden, auth_log, "/host/log/auth.log"),
     self() ! poll,
     {ok, #st{path = Path}}.
 
+handle_call(status, _From, #st{} = St) ->
+    {reply, snapshot(St), St};
 handle_call(_Req, _From, St) -> {reply, {error, unknown_call}, St}.
 handle_cast(_Msg, St)        -> {noreply, St}.
 
@@ -58,6 +72,18 @@ terminate(_Reason, #st{fd = Fd}) ->
     ok.
 
 %% --- Internal ---
+
+snapshot(#st{path = Path, fd = Fd, inode = Inode, pos = Pos, last_read_ms = Last}) ->
+    #{path      => Path,
+      attached  => Fd =/= undefined,
+      inode     => Inode,
+      pos       => Pos,
+      silent_ms => silent_for(Last)}.
+
+%% `undefined' is NOT zero silence: it means we have never read a byte, which
+%% health/0 must not mistake for a sensor that has gone deaf.
+silent_for(undefined) -> undefined;
+silent_for(Last)      -> max(0, erlang:system_time(millisecond) - Last).
 
 %% Open the log lazily, and FOLLOW IT ACROSS ROTATION.
 %%
@@ -124,8 +150,11 @@ drain(#st{fd = undefined} = St) ->
 drain(#st{fd = Fd, pos = Pos} = St) ->
     case file:pread(Fd, Pos, 65536) of
         {ok, Data} ->
+            %% pread only returns {ok,_} when it read something, so reaching
+            %% here IS the liveness event health/0 watches for.
             St2 = lists:foldl(fun line/2, St, binary:split(Data, <<"\n">>, [global])),
-            drain(St2#st{pos = Pos + byte_size(Data)});
+            drain(St2#st{pos = Pos + byte_size(Data),
+                         last_read_ms = erlang:system_time(millisecond)});
         eof ->
             St;
         {error, _} ->
