@@ -1,11 +1,15 @@
 # hecate-warden
 
-> **⚠️ DEPRECATED (2026-07-18).** Retired in the pivot from the cybersecurity
-> use case to a broad public cognitive substrate. The deployed wardens were
-> sensing-only (no tarpit) feeding the now-retired hecate-sentinel, so removing
-> them costs no active defense; public boxes rely on standard hardening. Kept for
-> reference; the tarpit code remains here if a genuine box-defense project revives
-> it later. Not maintained.
+> **Status: live and maintained.** Running on ~10 public boxes as sensing-only
+> sidecars, feeding [hecate-sentinel](https://github.com/hecate-services/hecate-sentinel)
+> and the public threat map at [macula.io/vigil](https://macula.io/vigil). Fleet
+> is on macula 7.1.0 / hecate_om 0.8.0.
+>
+> Deploys itself: a push to `main` publishes `:latest` and watchtower rolls the
+> fleet. `scripts/deploy-warden.sh` is create-only, for mount or env changes.
+>
+> History, so the commit log reads straight: deprecated 2026-07-18 in a pivot
+> away from the cybersecurity use case, reinstated 2026-07-23.
 
 A deceptive threshold guard you bolt onto a public-facing box. It watches the
 intrusion attempts your server is *already* taking, turns the persistent ones
@@ -155,8 +159,8 @@ Two topics, integration facts (not domain events — the warden holds no store):
 - `warden/ensnared` — `{type, warden(DID), tenant_id, label, source_ip, held_ms, at}`
 
 Downstream, `hecate-sentinel` correlates these across boxes and countries and
-raises campaigns to the society; nothing about that consumer is your concern to
-run. You publish; the commons reasons.
+raises cross-border campaigns onto the public threat map; nothing about that
+consumer is your concern to run. You publish; the commons correlates.
 
 ## Architecture (one screen)
 
@@ -167,15 +171,15 @@ run. You publish; the commons reasons.
  │           │ (ro mount) │  facts    │  correlate cross-box,    │
  │        hecate-warden ──┼──────────▶│  raise campaigns         │
  │        (sense/ensnare) │  (mesh)   │        │                 │
- │  opens nothing by      │           │  hecate-spartan society  │
- │  default; holds least  │           │  judge targeted vs noise │
+ │  opens nothing by      │           │  macula.io/vigil         │
+ │  default; holds least  │           │  the public threat map   │
  └───────────────────────┘           └──────────────────────────┘
    only the INDICATOR crosses — never your logs
 ```
 
 The warden is the only part that runs on your infrastructure. The consumers
-(`hecate-sentinel`, the `hecate-spartan` society) run on the commons side and are
-not your concern to operate.
+(`hecate-sentinel` and the public map) run on the commons side and are not your
+concern to operate.
 
 ## Build & test
 
