@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.1]
+
+### Fixed
+
+- Bumped `hecate_om` dependency `~> 0.10` -> `~> 0.15` (resolves 0.15.1,
+  transitively macula 10.0.0 -> 10.10.0). Had drifted well behind the
+  fleet this senses attacks on, including the domain-filter fix that
+  was silently dropping every `macula_diagnostics:event/2,3` call on
+  any consumer. Full eunit suite clean at the new versions.
+
 ## [0.2.0]
 
 ### Added
