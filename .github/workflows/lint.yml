@@ -1,8 +1,8 @@
 # Elvis lint + eunit for hecate-warden.
 #
-# Codeberg is canonical; this runs on the GitHub push-mirror (Forgejo Actions
-# disabled per the migration pattern). Keeps the org's structural rules honest:
-# no deep nesting (max one meaningful level), no nested try/catch, no if.
+# GitHub is canonical (since 2026-07-26). Keeps the org's structural rules
+# honest: no deep nesting (max one meaningful level), no nested try/catch,
+# no if.
 name: lint-and-test
 
 on:
@@ -18,6 +18,13 @@ jobs:
       image: erlang:27
     steps:
       - uses: actions/checkout@v4
+      # hecate_om 0.15.0 made barrel_docdb (RocksDB-backed) a hard
+      # dependency -- its erocksdb NIF needs cmake + a C++ toolchain to
+      # build, neither of which the base erlang:27 image ships. Without
+      # this, `rebar3 lint`/`rebar3 eunit` fail at "cmake: not found"
+      # the moment any dependency on hecate_om >= 0.15 lands here.
+      - name: Install native build toolchain (RocksDB via barrel_docdb)
+        run: apt-get update && apt-get install -y cmake build-essential
       - name: Elvis lint
         run: rebar3 lint
       - name: EUnit
