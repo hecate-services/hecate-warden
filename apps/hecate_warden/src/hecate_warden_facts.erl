@@ -119,11 +119,22 @@ tenant_id() ->
         _ -> undefined
     end.
 
-%% This warden's own service DID — so a sighting also carries cryptographic
-%% provenance of who reported it.
+%% This warden's own service identity (hex-encoded Ed25519 public key) — so a
+%% sighting also carries cryptographic provenance of who reported it.
+%%
+%% Was `hecate_om_identity:service_did()' — confirmed via `git log -S' across
+%% this repo's ENTIRE history that no such function has ever existed in
+%% hecate_om, at any version, in any module. Not a removed API: hecate-warden's
+%% own first commit (8a34d26) called a function that was never real, silently
+%% swallowed by the try/catch below ever since. Real accessor is
+%% `hecate_om:keypair/0' (the facade), same public key macula's own node_id/1
+%% is defined as verbatim (macula_identity.erl: `node_id(#{public := Pub}) ->
+%% Pub'), hex-encoded to match every other pubkey-as-identity display in this
+%% ecosystem (macula-e2e, macula-realm's LoadMonitor, etc.).
 reporter() ->
-    try hecate_om_identity:service_did()
-    catch _:_ -> undefined
+    case hecate_om:keypair() of
+        {ok, KeyPair} -> binary:encode_hex(macula_identity:public(KeyPair));
+        {error, _}    -> undefined
     end.
 
 at(#{at := At}) when is_integer(At) -> At;
