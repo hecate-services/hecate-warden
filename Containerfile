@@ -14,14 +14,23 @@
 FROM docker.io/erlang:27-alpine AS builder
 WORKDIR /build
 
-# openssl-dev, zstd-dev: hecate_om 0.15.0 made barrel_docdb (RocksDB-backed) a
-# hard dependency. erocksdb's CMake build does find_package(OpenSSL) and fails
-# outright without the dev headers. Without zstd-dev it falls back to
-# building zstd from a bundled/vendored copy that the hex package doesn't
-# actually ship (a git-submodule path never populated by `rebar3 get-deps`),
-# so it fails with "No download info given for 'zstd'" — pointing CMake at
-# the system lib avoids that path entirely.
-RUN apk add --no-cache git curl bash build-base cmake perl linux-headers openssl-dev zstd-dev
+# hecate_om 0.15.0 made barrel_docdb (RocksDB-backed) a hard dependency.
+# erocksdb's CMake build:
+#   - openssl-dev: does find_package(OpenSSL) and fails outright without the
+#     dev headers.
+#   - zstd-dev: without it, falls back to building zstd from a
+#     bundled/vendored copy the hex package doesn't actually ship (a
+#     git-submodule path never populated by `rebar3 get-deps`), failing
+#     with "No download info given for 'zstd'".
+#   - snappy-dev, lz4-dev: unlike zstd, a missing system snappy/lz4 does NOT
+#     fail the CMake configure — it silently disables that compression
+#     backend and the build succeeds. The break only shows up at RUNTIME:
+#     confirmed live 2026-08-27, barrel_docdb's db_open failed with
+#     "Invalid argument: The specified blob compression type Snappy is not
+#     available" the moment a real database was opened. A clean build is
+#     not proof this is fixed — only starting the release and opening a
+#     store is.
+RUN apk add --no-cache git curl bash build-base cmake perl linux-headers openssl-dev zstd-dev snappy-dev lz4-dev
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
         | sh -s -- -y --default-toolchain stable --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
