@@ -25,7 +25,7 @@
 
 info() ->
     #{name        => <<"hecate-warden">>,
-      version     => <<"0.2.2">>,
+      version     => <<"0.2.3">>,
       description => <<"Deceptive threshold guard for the public boxes">>}.
 
 start(_Opts) ->
@@ -74,8 +74,17 @@ silence_limit_ms() ->
 %% What the warden announces it can do. It reports threats and it ensnares —
 %% nothing that reaches toward an attacker, nothing that could lock the operator
 %% out. The whole point is that the menu of possible actions is small and safe.
+%%
+%% MAP SHAPE, NOT PLAIN BINARIES: hecate_om_service:capability() is
+%% #{name := binary(), version := pos_integer(), ...} as of hecate_om 0.16.4
+%% (see build_advertisement/6's own #{name := Name} clause). Plain binaries
+%% were never exercised until identity_key_path was fixed -- with no
+%% keypair, build_advertisement/6 was never reached, so the wrong shape
+%% here crashed hecate_om_capabilities (function_clause) the moment
+%% advertisement actually started, not before.
 capabilities() ->
-    [<<"warden.report_threat">>, <<"warden.ensnare">>].
+    [#{name => <<"warden.report_threat">>, version => 1},
+     #{name => <<"warden.ensnare">>,       version => 1}].
 
 %% The UCAN the warden asks the realm to mint: authority to publish on its own
 %% threat topics, and NOTHING else. If this box is popped, that is the entire

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.3]
+
+### Fixed
+
+- `capabilities/0` returned plain binaries (`[<<"warden.report_threat">>,
+  <<"warden.ensnare">>]`); `hecate_om_service:capability()` has been
+  `#{name := binary(), version := pos_integer(), ...}` since at least
+  hecate_om 0.16.4. Never caught because 0.2.2's `identity_key_path` fix
+  was needed just to REACH the code path that cares about the shape --
+  with no keypair, `build_advertisement/6` was never called at all.
+  Deploying 0.2.2 to the fleet crashed `hecate_om_capabilities`
+  (`function_clause`) on the first advertisement attempt after every box
+  rolled. Found live within a minute of the rollout, via `docker logs`.
+
 ## [0.2.2]
 
 ### Fixed
