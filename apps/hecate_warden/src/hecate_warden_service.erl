@@ -25,7 +25,7 @@
 
 info() ->
     #{name        => <<"hecate-warden">>,
-      version     => <<"0.1.0">>,
+      version     => <<"0.2.2">>,
       description => <<"Deceptive threshold guard for the public boxes">>}.
 
 start(_Opts) ->

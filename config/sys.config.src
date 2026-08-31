@@ -24,7 +24,20 @@
         {health_port,       ${HECATE_HEALTH_PORT}},
         {capability_topic,  <<"_mesh.cap.">>},
         %% Same realm as the Spartan society, so the generals hear the warden.
-        {realm,             <<"${HECATE_REALM}">>}
+        {realm,             <<"${HECATE_REALM}">>},
+
+        %% MANDATORY BECAUSE THIS SERVICE ADVERTISES CAPABILITIES (see
+        %% capabilities/0 in hecate_warden_service.erl: warden.report_threat,
+        %% warden.ensnare). Without it, hecate_om_identity:keypair/0 returns
+        %% {error, no_keypair} forever and capability advertisement silently
+        %% no-ops on every republish tick -- no crash, no error, the node just
+        %% never actually reachable. Same bug class hecate-mail, hecate-tube,
+        %% hecate-rag and hecate-embedder each independently hit. This
+        %% service is STORELESS (no store_id/0 + data_dir/0), so it reuses
+        %% the Containerfile's existing /var/lib/hecate-warden volume
+        %% (previously only holding erl_crash.dump) rather than introducing
+        %% a new one.
+        {identity_key_path, "/var/lib/hecate-warden/identity/keypair.erl.bin"}
     ]},
 
     {kernel, [{logger_level, info}]}

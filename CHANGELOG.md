@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.2]
+
+### Fixed
+
+- `identity_key_path` was never set in `config/sys.config.src` -- without it,
+  `hecate_om_identity:keypair/0` returns `{error, no_keypair}` forever and
+  capability advertisement (`warden.report_threat`, `warden.ensnare`)
+  silently no-ops on every republish tick. No crash, no error logged; the
+  node just never actually reachable on the mesh. hecate_om >= 0.14.1
+  self-heals a missing/corrupt keypair FILE at a configured path, but this
+  service never had a path configured at all, so bumping to 0.15 (0.2.1,
+  above) did not fix it on its own. Same bug class hecate-mail, hecate-tube,
+  hecate-rag and hecate-embedder each independently hit -- confirmed via a
+  live DHT sweep of all 7 fleet stations showing zero `warden.*` records
+  anywhere. Points at the existing `/var/lib/hecate-warden` Containerfile
+  volume (previously only holding `erl_crash.dump`) rather than a new one.
+
 ## [0.2.1]
 
 ### Fixed
