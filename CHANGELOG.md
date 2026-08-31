@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.4]
+
+### Changed
+- Bumped `hecate_om` `~> 0.15` -> `~> 0.16` (was actually too tight to
+  even resolve 0.16.x), now at 0.16.5, which picks up `reckon_db`
+  5.11.1: `read_all_global/3` no longer re-scans and re-sorts the
+  entire event store on every paginated catch-up call. Verified live:
+  a real prod release, booted with the fleet's actual env vars, no
+  crash.
+
 ## [0.2.3]
 
 ### Fixed
