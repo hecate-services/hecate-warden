@@ -21,7 +21,11 @@ set -euo pipefail
 HERE="$(cd -- "$(dirname -- "$0")" && pwd)"
 DEPLOY="${HERE}/deploy-warden.sh"
 : "${HECATE_REALM:?set HECATE_REALM to the 64-hex realm tag}"
-FRANKFURT="https://station-de-frankfurt.macula.io:4433"
+# >=3 SEED STATIONS PER WARDEN (fleet rule, 2026-09-02): one station's restart
+# must not take a sensor off the mesh. Frankfurt stays FIRST because it is the
+# sentinel's own station (see the note below); paris and falkenstein are the
+# fill, on two different providers. macula_client dials all three concurrently.
+SEEDS="https://station-de-frankfurt.macula.io:4433,https://station-fr-paris.macula.io:4433,https://station-de-falkenstein.macula.io:4433"
 
 # box = "ssh-host|station-seed|label|lat_e6|lng_e6". Public boxes log in as root.
 # lat/lng are the box's real-city micro-degrees (degrees x 1e6) — WITHOUT them
@@ -34,23 +38,29 @@ FRANKFURT="https://station-de-frankfurt.macula.io:4433"
 # (helsinki->fr-paris, falkenstein->be-brussels) and relied on cross-relay
 # interest propagation to reach the sentinel; that multi-hop path did not
 # converge, so the fleet is collapsed onto the de-frankfurt hub (2026-07-23).
+# 2026-09-02: every warden now dials the SEEDS triple above. Frankfurt is kept
+# in it, so the 1-hop path still exists; the two extra links are redundancy
+# for the seed restarts that the 2026-09-02 fleet rollout showed drop every
+# single-seeded client at once. Cross-station relay of facts between directly
+# peered stations was verified live the same day (a beam03 pool on a Frankfurt
+# link received facts published by Paris, Helsinki and Falkenstein).
 STATIONS=(
-  "relays-hetzner-helsinki.macula.io|${FRANKFURT}|helsinki|60169900|24938400"
-  "relays-hetzner-nuremberg.macula.io|${FRANKFURT}|nuremberg|49452100|11076700"
-  "stations-hetzner-falkenstein.macula.io|${FRANKFURT}|falkenstein|50477900|12371300"
-  "macula.io|${FRANKFURT}|frankfurt|50110900|8682100"
-  "relays-linode-paris.macula.io|${FRANKFURT}|paris|48856600|2352200"
+  "relays-hetzner-helsinki.macula.io|${SEEDS}|helsinki|60169900|24938400"
+  "relays-hetzner-nuremberg.macula.io|${SEEDS}|nuremberg|49452100|11076700"
+  "stations-hetzner-falkenstein.macula.io|${SEEDS}|falkenstein|50477900|12371300"
+  "macula.io|${SEEDS}|frankfurt|50110900|8682100"
+  "relays-linode-paris.macula.io|${SEEDS}|paris|48856600|2352200"
 )
 RELAYS=(
-  "159.69.210.171|${FRANKFURT}|reckon-db|49435000|11060000"
+  "159.69.210.171|${SEEDS}|reckon-db|49435000|11060000"
   # beam-campus.net commons site — public, attacked; sensing-only warden.
   # Second Falkenstein box: coords offset from stations-hetzner-falkenstein.
-  "178.105.157.209|${FRANKFURT}|beamcampus|50485000|12385000"
+  "178.105.157.209|${SEEDS}|beamcampus|50485000|12385000"
 )
 # NEW coverage (user request 2026-07-23): the two Linode stub Nanodes.
 STUBS=(
-  "172.232.219.239|${FRANKFURT}|milan|45464200|9190000"
-  "172.234.124.60|${FRANKFURT}|stockholm|59329300|18068600"
+  "172.232.219.239|${SEEDS}|milan|45464200|9190000"
+  "172.234.124.60|${SEEDS}|stockholm|59329300|18068600"
 )
 
 group="${1:-all}"

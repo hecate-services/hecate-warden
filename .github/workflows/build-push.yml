@@ -10,6 +10,11 @@ on:
   push:
     branches: [main]
     tags:     ['v*']
+    # A push that touches only operator scripts or docs must not rebuild
+    # :latest -- watchtower would roll every warden on the fleet for nothing.
+    paths-ignore:
+      - 'scripts/**'
+      - '**.md'
   workflow_dispatch:
 
 jobs:
