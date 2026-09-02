@@ -42,7 +42,7 @@ in `.env`:
 # .env  — the five you actually set
 HECATE_WARDEN_TENANT_ID=acme-corp
 HECATE_WARDEN_LABEL=web-01
-HECATE_REALM=074acb6cb190d8ef79fdbdd8e8e76d53f6292c181fd23f4d3998560f9a94e8e3
+HECATE_REALM=abb81b5a614b63551b400b810648c0c8a78efad845442630c94b46cc95d2fcd1
 MACULA_STATION_SEEDS=https://station-de-frankfurt.macula.io:4433
 HECATE_WARDEN_AUTH_LOG_HOST=/var/log/auth.log
 ```
