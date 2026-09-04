@@ -71,10 +71,21 @@ put_coord(Fact, Key, S) ->
 
 %% Whether this warden is running the tarpit (decoy ports bound) or is a pure
 %% sensing sidecar. Carried on presence so the map can distinguish a decoy node.
+%% Returns 1/0, not a bare atom: this mesh's wire format has no boolean type
+%% (every other fact in this ecosystem follows the same 0/1 convention), and a
+%% raw `true' atom here was the reason warden-fr-paris (the one box that is
+%% ever tarpit=true) never actually landed a presence fact -- every
+%% tarpit=false warden's atom apparently limped through the wire as a string,
+%% but true did not, so the one honeypot box silently never appeared on the
+%% Vigil map. Confirmed live 2026-09-04: watching warden/presence directly
+%% showed 10/10 sensing wardens present, zero from madrid, and every one of
+%% those 10 carried `"tarpit":"false"' -- a string, not a boolean, the
+%% tell-tale sign of exactly this bug.
+-spec tarpit_on() -> 0 | 1.
 tarpit_on() ->
     case application:get_env(hecate_warden, tarpit_ports) of
-        {ok, [_ | _]} -> true;
-        _             -> false
+        {ok, [_ | _]} -> 1;
+        _             -> 0
     end.
 
 publish(Topic, Fact) ->
